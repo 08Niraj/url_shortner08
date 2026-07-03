@@ -61,14 +61,32 @@ export async function login(req,res){
 
   const refreshToken=jwt.sign({
      id:user._id,
-  },process.env.JWT_TOKEN,{
+  },process.env.JWT_SECRET,{
     expiresIn:"1d"
   })
 
   const accessToken=jwt.sign({
      id:user._id,
-  },process.env.JWT_TOKEN,{
+  },process.env.JWT_SECRET,{
     expiresIn:"15m"
   })
+
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 24 * 60 * 60 * 1000
+});
+
+  
+res.status(200).json({
+    accessToken,
+    user
+});
+}
+
+export async function getMe(req,res){
+  console.log("i am fetched successfully")
+  return res.status.json({message:"user fetched successfully"})
 
 }
