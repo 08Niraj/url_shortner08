@@ -5,6 +5,8 @@ import {connectDB} from "./src/config/db.js";
 import authRouter from "./src/routers/auth.router.js";
 import cookieParser from "cookie-parser";
 
+const app=express();
+
 //connecting the db
 connectDB();
 
@@ -13,11 +15,11 @@ app.use(express.json())
 app.use(cookieParser());
 
 //auth routes
-app.use("api/auth",authRouter);
+app.use("/api/auth",authRouter);
 
 
 
-const app=express();
+
 
 
 app.listen(process.env.PORT,()=>{
