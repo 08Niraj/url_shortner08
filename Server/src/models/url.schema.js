@@ -1,9 +1,11 @@
+import mongoose from "mongoose"
+
 const urlSchema = new mongoose.Schema({
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
-        required: true
-    },
+        required: true,
+      },
 
     originalUrl: {
         type: String,
@@ -26,13 +28,10 @@ const urlSchema = new mongoose.Schema({
         default: true
     },
 
-    expiresAt: {
-        type: Date,
-        default: null
-    }
+    
 
 }, {
     timestamps: true
 });
 
-export default mongoose.model("urlSchema",Url)
+export default mongoose.model("Url",urlSchema)

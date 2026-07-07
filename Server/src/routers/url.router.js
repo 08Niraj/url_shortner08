@@ -1,14 +1,16 @@
-import {express,Router} from "express"
-import {createShortUrl,getAllShortUrl,getShortUrl,deleteShortUrl,redirectToLongUrl} from  "../controllers/url.controller"
+import express from "express"
+import {Router} from "express"
+import {createShortUrl,getAllShortUrl,deleteShortUrl,redirectToLongUrl} from  "../controllers/url.controller.js"
+import {authMiddleware} from "../middleware/authMiddleware.js"
 
 const urlRouter=Router();
 
-urlRouter.post("/create",createShortUrl)
-urlRouter.get("/getUrls",getAllShortUrl)
-urlRouter.get("/getUrl",getShortUrl)
-urlRouter.delete("/delete-url",deleteShortUrl)
+urlRouter.post("/create",authMiddleware,createShortUrl)
+urlRouter.get("/geturls",authMiddleware,getAllShortUrl)
 
-urlRouter.redirect("/:shortUrl",redirectToLongUrl)
+urlRouter.delete("/delete-url",authMiddleware,deleteShortUrl)
+
+urlRouter.get("/:shortUrl",authMiddleware,redirectToLongUrl)
 
 
 
