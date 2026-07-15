@@ -10,7 +10,7 @@ urlRouter.get("/geturls",authMiddleware,getAllShortUrl)
 
 urlRouter.delete("/delete-url",authMiddleware,deleteShortUrl)
 
-urlRouter.get("/:shortUrl",authMiddleware,redirectToLongUrl)
+urlRouter.get("/:shortCode",redirectToLongUrl)
 
 
 

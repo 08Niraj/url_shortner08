@@ -29,34 +29,60 @@ export async function createShortUrl(req, res) {
 
 export async function getAllShortUrl(req, res) {
   try {
-    // Tip: If you only want users to see their OWN urls, change this to:
-    // const urls = await Url.find({ user: req.user.id });
-    const urls = await Url.find({user:req.user.id});
+    // 1. Pagination setup (default to page 1, 10 items per page)
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
+    // 2. Fetch scoped data with pagination and sorting
+    const urls = await Url.find({ user: req.user.id })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // 3. Get total count for the frontend to render page numbers
+    const totalUrls = await Url.countDocuments({ user: req.user.id });
+
+    // 4. Handle empty state gracefully
     if (urls.length === 0) {
-      return res.status(200).json({ message: "No URLs are present" });
+      return res.status(200).json({ 
+        message: "No URLs are present", 
+        urls: [],
+        totalPages: 0,
+        currentPage: page
+      });
     }
 
-    return res.status(200).json({ message: "URLs fetched successfully", urls });
+    // 5. Return successful payload
+    return res.status(200).json({ 
+      message: "URLs fetched successfully", 
+      urls,
+      currentPage: page,
+      totalPages: Math.ceil(totalUrls / limit),
+      totalItems: totalUrls
+    });
+
   } catch (error) {
-    console.log(error);
+    // Tip: Use console.error for errors so they are flagged properly in server logs
+    console.error("Error fetching URLs:", error); 
     return res.status(500).json({ message: "Internal server error" });
   }
 }
 
 export async function deleteShortUrl(req, res) {
   try {
-    const { originalUrl } = req.body;
-
-    // FIXED: Used findOne() instead of find()
-    const urlRecord = await Url.findOne({ originalUrl });
+  
+    const urlRecord = await Url.findOne({
+    _id:req.params.id,
+    user:req.user.id
+})
 
     if (!urlRecord) {
       // FIXED: Corrected status code and message
       return res.status(404).json({ message: "URL not found" });
     }
 
-    await Url.findOneAndDelete({ originalUrl });
+   await urlRecord.deleteOne();
 
     return res.status(200).json({ message: "Deleted the URL successfully" });
   } catch (error) {
@@ -69,7 +95,10 @@ export async function redirectToLongUrl(req, res) {
   try {
     const { shortCode } = req.params;
 
+
     const urlRecord = await Url.findOne({ shortCode });
+   
+   
 
     if (!urlRecord) {
       return res.status(404).json({ message: "Short URL not found" });
@@ -88,3 +117,4 @@ export async function redirectToLongUrl(req, res) {
     return res.status(500).json({ message: "Internal server error" });
   }
 }
+
