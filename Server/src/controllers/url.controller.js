@@ -29,31 +29,70 @@ export async function createShortUrl(req, res) {
 
 export async function getAllShortUrl(req, res) {
   try {
-    // 1. Pagination setup (default to page 1, 10 items per page)
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    // 1. Start with a baseline query that ALWAYS restricts data to the logged-in user
+    const query = {
+      user: req.user.id
+    };
+
+    // 2. Extract searching, filtering, and pagination parameters from the URL query
+    const { search, isActive } = req.query; // <--- This extracts '?search=xyz&status=active'
+
+
+    console.log(req.query)
+    // 3. THE SEARCH IMPLEMENTATION
+    // If the user provided a search term, modify the database query object
+   if (search) {
+  // 1. Cleanly escape special characters (safely)
+  const safeSearch = search.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+  
+  // 2. Use MongoDB's native $regex and $options operators instead of passing a RegExp class instance
+  query.$or = [
+    { originalUrl: { $regex: safeSearch, $options: "i" } },
+    { shortUrl: { $regex: safeSearch, $options: "i" } }
+  ];
+}
+
+
+console.log(req.query.isActive)
+    // 4. THE FILTERING IMPLEMENTATION
+    // If the user provided a status filter, append it to the query object
+   if (isActive !== undefined) {
+  if (isActive === "active" || isActive === "true") {
+    query.isActive = true;
+  } else if (isActive === "inactive" || isActive === "false") {
+    query.isActive = false;
+  }
+}
+
+    // 5. Pagination setup (same as your original code)
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
     const skip = (page - 1) * limit;
 
-    // 2. Fetch scoped data with pagination and sorting
-    const urls = await Url.find({ user: req.user.id })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    // 6. Execute the query
+    // Notice we pass our custom 'query' object directly into .find() and .countDocuments()
+    const [urls, totalUrls] = await Promise.all([
+      Url.find(query) // <--- Uses the dynamically built query
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Url.countDocuments(query) // <--- Matches the count to the search/filter criteria
+    ]);
 
-    // 3. Get total count for the frontend to render page numbers
-    const totalUrls = await Url.countDocuments({ user: req.user.id });
+    console.log(urls)
 
-    // 4. Handle empty state gracefully
+    // 7. Handle empty state gracefully
     if (urls.length === 0) {
       return res.status(200).json({ 
-        message: "No URLs are present", 
+        message: "No matching URLs found", 
         urls: [],
         totalPages: 0,
-        currentPage: page
+        currentPage: page,
+        totalItems: 0
       });
     }
 
-    // 5. Return successful payload
+    // 8. Return successful payload
     return res.status(200).json({ 
       message: "URLs fetched successfully", 
       urls,
@@ -63,7 +102,6 @@ export async function getAllShortUrl(req, res) {
     });
 
   } catch (error) {
-    // Tip: Use console.error for errors so they are flagged properly in server logs
     console.error("Error fetching URLs:", error); 
     return res.status(500).json({ message: "Internal server error" });
   }
