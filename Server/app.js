@@ -8,6 +8,7 @@ import cookieParser from "cookie-parser";
 import morgan from 'morgan';
 import path from "path"
 import fs from 'fs'
+import redis from "./src/config/redis.js"
 
 const app=express();
 

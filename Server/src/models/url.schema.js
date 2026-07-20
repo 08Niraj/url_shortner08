@@ -1,38 +1,39 @@
 import mongoose from "mongoose"
 
-const urlSchema = new mongoose.Schema({
+const urlSchema = new mongoose.Schema(
+  {
     user: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-        required: true,
-      },
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
 
     originalUrl: {
-        type: String,
-        required: true
+      type: String,
+      required: true,
     },
 
     shortCode: {
-        type: String,
-        required: true,
-        unique: true,
-        index: true
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
     },
 
     clicks: {
-        type: Number,
-        default: 0
+      type: Number,
+      default: 0,
     },
-
-    isActive: {
-        type: Boolean,
-        default: true
+    expiresAt: {
+      type: Date,
+      default: null,
     },
+  },
+  {
+    timestamps: true,
+  }
+);
 
-    
-
-}, {
-    timestamps: true
-});
+urlSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export default mongoose.model("Url",urlSchema)

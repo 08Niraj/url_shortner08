@@ -1,22 +1,27 @@
 import Url from "../models/url.schema.js";
 import User from "../models/user.schema.js";
 import { nanoid } from 'nanoid';
+import redis from "../config/redis.js"
 
 export async function createShortUrl(req, res) {
   try {
     const { originalUrl } = req.body;
 
     // Optional: Consider using a regex or URL constructor for more robust validation
-    if (!originalUrl.includes("https")) {
-      return res.status(400).json({ message: "Site is not secure. HTTPS is required." });
-    }
+    //if (!originalUrl.includes("https")) {
+      //return res.status(400).json({ message: "Site is not secure. HTTPS is required." });
+    //}
+
+
+
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     const shortUrl = await Url.create({
       user: req.user.id,
       originalUrl: originalUrl,
       shortCode: nanoid(6),
       clicks: 0,
-      isActive: true
+      expiresAt,
     });
 
     // FIXED: Passed as a single object to res.json()
@@ -44,7 +49,7 @@ export async function getAllShortUrl(req, res) {
    if (search) {
   // 1. Cleanly escape special characters (safely)
   const safeSearch = search.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
-  
+
   // 2. Use MongoDB's native $regex and $options operators instead of passing a RegExp class instance
   query.$or = [
     { originalUrl: { $regex: safeSearch, $options: "i" } },
@@ -83,8 +88,8 @@ console.log(req.query.isActive)
 
     // 7. Handle empty state gracefully
     if (urls.length === 0) {
-      return res.status(200).json({ 
-        message: "No matching URLs found", 
+      return res.status(200).json({
+        message: "No matching URLs found",
         urls: [],
         totalPages: 0,
         currentPage: page,
@@ -93,8 +98,8 @@ console.log(req.query.isActive)
     }
 
     // 8. Return successful payload
-    return res.status(200).json({ 
-      message: "URLs fetched successfully", 
+    return res.status(200).json({
+      message: "URLs fetched successfully",
       urls,
       currentPage: page,
       totalPages: Math.ceil(totalUrls / limit),
@@ -102,14 +107,14 @@ console.log(req.query.isActive)
     });
 
   } catch (error) {
-    console.error("Error fetching URLs:", error); 
+    console.error("Error fetching URLs:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 }
 
 export async function deleteShortUrl(req, res) {
   try {
-  
+
     const urlRecord = await Url.findOne({
     _id:req.params.id,
     user:req.user.id
@@ -132,24 +137,49 @@ export async function deleteShortUrl(req, res) {
 export async function redirectToLongUrl(req, res) {
   try {
     const { shortCode } = req.params;
+   // cache key
+    const cacheKey = `url:${shortCode}`;
+
+    const cachedData = await redis.get(cacheKey);
+
+    if (cachedData) {
+      console.log(' Cache Hit');
+      console.log(cachedData);
+
+      const url = JSON.parse(cachedData);
+
+      return res.redirect(url.originalUrl);
+    }
+
+    console.log(' Cache Miss');
 
 
     const urlRecord = await Url.findOne({ shortCode });
-   
-   
+
+console.log(urlRecord);
 
     if (!urlRecord) {
       return res.status(404).json({ message: "Short URL not found" });
     }
 
-    if (!urlRecord.isActive) {
-      return res.status(410).json({ message: "This short URL is no longer active" });
-    }
+
+
+    await redis.set(
+      cacheKey,
+      JSON.stringify({
+        originalUrl: urlRecord.originalUrl,
+
+      }),
+      'EX',
+      3600
+    );
 
     urlRecord.clicks += 1;
     await urlRecord.save();
 
     return res.redirect(urlRecord.originalUrl);
+
+
   } catch (error) {
     console.log(error);
     return res.status(500).json({ message: "Internal server error" });
